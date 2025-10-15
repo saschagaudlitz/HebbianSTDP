@@ -12,6 +12,7 @@ The simulation explores how Hebbian STDP can be interpreted as a form of noisy g
 - Gradient flow visualizations
 - Single weight vector learning trajectories on the probability simplex
 - Multiple weight vector learning with orthogonalization
+- Allows for correlated inputs via specification of a correlation matrix
 - Various plotting utilities for trajectory visualization
 - Conversion utilities between cartesian and barycentric coordinates
 
@@ -33,13 +34,6 @@ using Pkg
 Pkg.add(["PyPlot", "LinearAlgebra", "Distributions", "Random"])
 ```
 
-## Usage
-
-Run the simulation with:
-
-```bash
-julia SimulationCode_HebbianSTDP.jl
-```
 
 The script will generate several visualizations:
 1. Loss landscape on the probability simplex with and without gradient flow
@@ -52,6 +46,7 @@ The script includes configurable parameters at the top:
 
 - Probability simplex configuration (vertices, grid resolution)
 - Learning rates for single and multiple weight vectors
+- Correlation matrix for input neurons
 - Number of simulation time steps
 - Starting points for trajectories
 - Input neuron intensities
@@ -73,12 +68,9 @@ If you use this code in your research, please cite:
 ```
 @article{hebbianstdp2025,
   title={Spike-timing-dependent Hebbian learning as noisy gradient descent},
-  author={[Author names]},
+  author={[Niklas Dexheimer, Sascha Gaudlitz, Johannes Schmidt-Hieber]},
   journal={arXiv preprint arXiv:2505.10272},
   year={2025}
 }
 ```
 
-## License
-
-[Insert appropriate license information]
