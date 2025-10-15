@@ -1,7 +1,7 @@
 """
 
 Simulates and visualises Hebbian STDP. Both a single weight vector and multiple weight vectors
-are considered.
+are considered. Allows for correlations.
 
 """
 
@@ -38,6 +38,9 @@ else
     static_start_point = [0.3, 0.3, 0.4]            # Fixed starting point for many runs (n_trajectories >> 3)
     starting_points = [static_start_point for _ in 1:n_trajectories]
 end
+correlation_matrix = [1.0 0.0 0.0;               # Correlation matrix (Gamma) for input neurons
+                      0.0 1.0 0.0; 
+                      0.0 0.0 1.0]
 
 
 # Multiple weight vectors learning parameters
@@ -93,7 +96,10 @@ function LossLandscape(x, y; grad = true, plotting = true)
                 if minimum(bary) < 0
                     grad_x[i, j] = grad_y[i,j] = NaN  # NaN for points outside simplex
                 else
-                    grad_x[i,j], grad_y[i,j] = bary_to_cart(gradientL(bary))
+                    grad_cart = gradient_bary_to_cart(gradientL(bary))
+                    grad_x[i,j] = grad_cart[1]
+                    grad_y[i,j] = grad_cart[2]
+                    #grad_x[i,j], grad_y[i,j] = bary_to_cart(gradientL(bary))
                 end
             end
         end
@@ -132,13 +138,20 @@ function indiv_trajectory(p_0, lr, num_steps)
         # Generate STDP updates:
         # B: One-hot vector with random index based on current probabilities
         # Z: Uniform random noise
-        B = zeros(3)
-        B[rand(Categorical(bary_old))] = 1
+
+ 
+        C = rand.(Bernoulli.(correlation_matrix))
+        B = rand.(Bernoulli.(min.(C * bary_old,1)))
+        #B = zeros(3)
+        #B[rand(Categorical(bary_old))] = 1
         Z = rand(Uniform(-1,1), 3)
         
         #Update step
-        normaliser = 1 + lr * sum(bary_old .* (B + Z))
-        bary_new = @. bary_old * (1 + lr * (B + Z)) / normaliser
+        #normaliser = 1 + lr * sum(bary_old .* (B + Z))
+        #bary_new = @. bary_old * (1 + lr * (B + Z)) / normaliser
+        bary_new = @. bary_old * (1 + lr * (B + Z))
+        bary_new /= sum(bary_new)  # Project back onto simplex
+
         
         traject_bary[i+1, :] = bary_new
         traject[i+1, :] = bary_to_cart(bary_new)
@@ -405,7 +418,8 @@ Arguments:
 Returns: Loss value at point p
 """
 function L(p)
-    return -1/3*sum(val^3 for val in p) + 1/4 * sum(val^2 for val in p)^2
+    #return -1/3*sum(val^3 for val in p) + 1/4 * sum(val^2 for val in p)^2
+    return -1/2 * (dot(p, correlation_matrix, p))
 end
 
 """
@@ -415,7 +429,8 @@ Arguments:
 Returns: Gradient vector at point p
 """
 function gradientL(p)
-    return [val * (val - sum(p.^2)) for val in p]
+    #return [val * (val - sum(p.^2)) for val in p]
+    return  p .* (correlation_matrix * p .- dot(p, correlation_matrix, p))
 end
 
 """
@@ -437,6 +452,28 @@ Returns: Cartesian coordinates [x, y]
 """
 function bary_to_cart(bary, polygon_points=polygon_points)
     return [sum(bary .* [x[1] for x in polygon_points]), sum(bary .* [x[2] for x in polygon_points])]
+end
+
+
+"""
+Converts a gradient vector from barycentric to Cartesian coordinates.
+Arguments:
+- grad_bary: Gradient vector in barycentric coordinates (3D tangent vector)
+Returns: Gradient in Cartesian coordinates [dx, dy]
+"""
+function gradient_bary_to_cart(grad_bary)
+    # Map barycentric gradient to Cartesian using the Jacobian
+    # The transformation is: (x,y) = Σᵢ λᵢ * vertex_i
+    # So ∂/∂λᵢ → vertex_i
+    dx = polygon_points[1][1] * grad_bary[1] + 
+         polygon_points[2][1] * grad_bary[2] + 
+         polygon_points[3][1] * grad_bary[3]
+    
+    dy = polygon_points[1][2] * grad_bary[1] + 
+         polygon_points[2][2] * grad_bary[2] + 
+         polygon_points[3][2] * grad_bary[3]
+    
+    return [dx, dy]
 end
 
 
